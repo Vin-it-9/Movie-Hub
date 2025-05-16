@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommendation System</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Set up Tailwind theme configuration
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // GitHub Dark theme colors
+                        'gh-dark': {
+                            bg: '#0d1117',
+                            header: '#161b22',
+                            border: '#30363d',
+                            text: '#c9d1d9',
+                            link: '#58a6ff',
+                            icon: '#8b949e',
+                            btn: '#238636',
+                            hover: '#2ea043'
+                        },
+                        // GitHub Light theme colors
+                        'gh-light': {
+                            bg: '#ffffff',
+                            header: '#f6f8fa',
+                            border: '#d0d7de',
+                            text: '#24292f',
+                            link: '#0969da',
+                            icon: '#6e7781',
+                            btn: '#2da44e',
+                            hover: '#2c974b'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-in-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Skeleton loader animation */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        .skeleton {
+            background: linear-gradient(to right, 
+                rgba(255, 255, 255, 0.05) 8%, 
+                rgba(255, 255, 255, 0.15) 18%, 
+                rgba(255, 255, 255, 0.05) 33%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite linear;
+        }
+        
+        .dark .skeleton {
+            background: linear-gradient(to right, 
+                rgba(255, 255, 255, 0.05) 8%, 
+                rgba(255, 255, 255, 0.15) 18%, 
+                rgba(255, 255, 255, 0.05) 33%);
+            background-size: 1000px 100%;
+        }
+        
+        .light .skeleton {
+            background: linear-gradient(to right, 
+                rgba(0, 0, 0, 0.05) 8%, 
+                rgba(0, 0, 0, 0.1) 18%, 
+                rgba(0, 0, 0, 0.05) 33%);
+            background-size: 1000px 100%;
+        }
+        
+        /* Spinner animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            animation: spin 1.2s linear infinite;
+        }
+        
+        /* Smooth transition for theme switching */
+        .transition-colors {
+            transition-property: color, background-color, border-color, fill;
+            transition-duration: 200ms;
+        }
+        
+        /* Custom scrollbar */
+        .dark ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .dark ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+        
+        .light ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .light ::-webkit-scrollbar-track {
+            background: #f6f8fa;
+        }
+        
+        .light ::-webkit-scrollbar-thumb {
+            background: #d0d7de;
+            border-radius: 4px;
+        }
+        
+        .light ::-webkit-scrollbar-thumb:hover {
+            background: #afb8c1;
+        }
+        
+        /* Movie card animations */
+        .movie-card {
+            transition: all 0.3s ease;
+        }
+        
+        .movie-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .dark .movie-card:hover {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+        }
+        
+        .light .movie-card:hover {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+
+<body class="bg-gh-dark-bg dark:bg-gh-dark-bg light:bg-gh-light-bg text-gh-dark-text dark:text-gh-dark-text light:text-gh-light-text transition-colors min-h-screen">
+    <!-- GitHub-style header -->
+    <header class="sticky top-0 z-50 bg-gh-dark-header dark:bg-gh-dark-header light:bg-gh-light-header border-b dark:border-gh-dark-border light:border-gh-light-border transition-colors shadow-sm">
+        <div class="container mx-auto px-4 py-3 flex flex-wrap items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-film text-2xl text-gh-dark-link dark:text-gh-dark-link light:text-gh-light-link"></i>
+                <h1 class="text-xl font-bold tracking-tight">MovieHub</h1>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <div class="relative" id="searchContainer">
+                    <input 
+                        type="text" 
+                        id="movieSearch" 
+                        placeholder="Search movies..."
+                        class="w-36 sm:w-64 py-1.5 px-3 pr-8 rounded-md border dark:border-gh-dark-border light:border-gh-light-border bg-gh-dark-bg dark:bg-gh-dark-bg light:bg-gh-light-bg focus:outline-none focus:ring-2 focus:ring-gh-dark-link dark:focus:ring-gh-dark-link light:focus:ring-gh-light-link transition-all duration-300"
+                    >
+                    <button id="searchButton" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon hover:text-gh-dark-link dark:hover:text-gh-dark-link light:hover:text-gh-light-link transition-colors">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                
+                <!-- Theme toggle button -->
+                <button id="themeToggle" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 flex items-center justify-center transition-colors" aria-label="Toggle dark/light theme">
+                    <i id="themeIcon" class="fas fa-moon text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon"></i>
+                </button>
+                
+                <a href="https://github.com/your-username/movie-recommender" target="_blank" class="hidden sm:flex items-center text-sm hover:text-gh-dark-link dark:hover:text-gh-dark-link light:hover:text-gh-light-link transition-colors">
+                    <i class="fab fa-github mr-1.5"></i> Source
+                </a>
+                
+                <button id="apiStatus" class="hidden sm:flex items-center text-xs px-2 py-1 rounded-full bg-yellow-600 text-white">
+                    <span class="animate-pulse mr-1.5">●</span> Connecting...
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- Category Pills -->
+        <div class="flex flex-wrap items-center gap-2 mb-6 overflow-x-auto py-2 scrollbar-none">
+            <button class="category-pill active flex items-center px-4 py-1.5 rounded-full bg-gh-dark-link dark:bg-gh-dark-link light:bg-gh-light-link text-white font-medium text-sm whitespace-nowrap" data-category="popular">
+                <i class="fas fa-fire-alt mr-1.5"></i> Popular
+            </button>
+            <button class="category-pill flex items-center px-4 py-1.5 rounded-full bg-opacity-10 bg-gray-400 dark:bg-opacity-10 light:bg-opacity-10 font-medium text-sm whitespace-nowrap hover:bg-opacity-20 transition-colors" data-category="top_rated">
+                <i class="fas fa-star mr-1.5"></i> Top Rated
+            </button>
+            <button class="category-pill flex items-center px-4 py-1.5 rounded-full bg-opacity-10 bg-gray-400 dark:bg-opacity-10 light:bg-opacity-10 font-medium text-sm whitespace-nowrap hover:bg-opacity-20 transition-colors" data-category="now_playing">
+                <i class="fas fa-ticket-alt mr-1.5"></i> Now Playing
+            </button>
+            <button class="category-pill flex items-center px-4 py-1.5 rounded-full bg-opacity-10 bg-gray-400 dark:bg-opacity-10 light:bg-opacity-10 font-medium text-sm whitespace-nowrap hover:bg-opacity-20 transition-colors" data-category="upcoming">
+                <i class="fas fa-calendar-alt mr-1.5"></i> Upcoming
+            </button>
+        </div>
+
+        <!-- Results Title -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="resultsTitle" class="text-xl font-bold">Popular Movies</h2>
+            <span id="resultCount" class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon"></span>
+        </div>
+
+        <!-- Movie Grid -->
+        <div id="moviesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 mb-10">
+            <!-- Skeleton Loaders (will be replaced by actual content) -->
+            <div class="skeleton-card animate-pulse-slow">
+                <div class="aspect-[2/3] rounded-lg overflow-hidden bg-opacity-10 bg-gray-400 skeleton"></div>
+                <div class="pt-2">
+                    <div class="h-4 bg-opacity-10 bg-gray-400 rounded skeleton"></div>
+                    <div class="h-3 bg-opacity-10 bg-gray-400 rounded mt-2 w-2/3 skeleton"></div>
+                </div>
+            </div>
+            <div class="skeleton-card animate-pulse-slow">
+                <div class="aspect-[2/3] rounded-lg overflow-hidden bg-opacity-10 bg-gray-400 skeleton"></div>
+                <div class="pt-2">
+                    <div class="h-4 bg-opacity-10 bg-gray-400 rounded skeleton"></div>
+                    <div class="h-3 bg-opacity-10 bg-gray-400 rounded mt-2 w-2/3 skeleton"></div>
+                </div>
+            </div>
+            <div class="skeleton-card animate-pulse-slow">
+                <div class="aspect-[2/3] rounded-lg overflow-hidden bg-opacity-10 bg-gray-400 skeleton"></div>
+                <div class="pt-2">
+                    <div class="h-4 bg-opacity-10 bg-gray-400 rounded skeleton"></div>
+                    <div class="h-3 bg-opacity-10 bg-gray-400 rounded mt-2 w-2/3 skeleton"></div>
+                </div>
+            </div>
+            <div class="skeleton-card animate-pulse-slow">
+                <div class="aspect-[2/3] rounded-lg overflow-hidden bg-opacity-10 bg-gray-400 skeleton"></div>
+                <div class="pt-2">
+                    <div class="h-4 bg-opacity-10 bg-gray-400 rounded skeleton"></div>
+                    <div class="h-3 bg-opacity-10 bg-gray-400 rounded mt-2 w-2/3 skeleton"></div>
+                </div>
+            </div>
+            <div class="skeleton-card animate-pulse-slow hidden sm:block">
+                <div class="aspect-[2/3] rounded-lg overflow-hidden bg-opacity-10 bg-gray-400 skeleton"></div>
+                <div class="pt-2">
+                    <div class="h-4 bg-opacity-10 bg-gray-400 rounded skeleton"></div>
+                    <div class="h-3 bg-opacity-10 bg-gray-400 rounded mt-2 w-2/3 skeleton"></div>
+                </div>
+            </div>
+            <div class="skeleton-card animate-pulse-slow hidden sm:block">
+                <div class="aspect-[2/3] rounded-lg overflow-hidden bg-opacity-10 bg-gray-400 skeleton"></div>
+                <div class="pt-2">
+                    <div class="h-4 bg-opacity-10 bg-gray-400 rounded skeleton"></div>
+                    <div class="h-3 bg-opacity-10 bg-gray-400 rounded mt-2 w-2/3 skeleton"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Movie Details Modal - Hidden by default -->
+        <div id="movieModal" class="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden">
+            <div id="movieModalContent" class="bg-gh-dark-bg dark:bg-gh-dark-bg light:bg-gh-light-bg rounded-xl overflow-hidden shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-fade-in">
+                <!-- Modal content will be inserted here -->
+                <div class="flex justify-end p-4 absolute top-0 right-0 z-10">
+                    <button id="closeModal" class="text-white bg-black bg-opacity-50 hover:bg-opacity-70 transition-colors p-2 rounded-full">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <!-- Movie details will be inserted here -->
+            </div>
+        </div>
+        
+        <!-- Back to top button -->
+        <button id="backToTop" class="fixed bottom-6 right-6 bg-gh-dark-link dark:bg-gh-dark-link light:bg-gh-light-link text-white p-3 rounded-full shadow-lg opacity-0 invisible transition-all duration-300 hover:scale-110" aria-label="Back to top">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+    </main>
+
+    <footer class="py-6 border-t dark:border-gh-dark-border light:border-gh-light-border text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">
+        <div class="container mx-auto px-4 text-center text-sm">
+            <p>Made with <i class="fas fa-heart text-red-500"></i> using the TMDB API</p>
+            <p class="mt-1">© 2025 MovieHub. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+        </div>
+    </footer>
+
+    <script>
+        // API Configuration
+        const API_KEY = 'd2f5db2cd186e014e2d0bb2460d901fc';
+        const BASE_URL = 'https://api.themoviedb.org/3';
+        const POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+        const BACKDROP_BASE_URL = 'https://image.tmdb.org/t/p/original';
+        
+        // DOM elements
+        const apiStatus = document.getElementById('apiStatus');
+        const movieSearch = document.getElementById('movieSearch');
+        const searchButton = document.getElementById('searchButton');
+        const searchContainer = document.getElementById('searchContainer');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultCount = document.getElementById('resultCount');
+        const moviesGrid = document.getElementById('moviesGrid');
+        const movieModal = document.getElementById('movieModal');
+        const movieModalContent = document.getElementById('movieModalContent');
+        const closeModal = document.getElementById('closeModal');
+        const backToTop = document.getElementById('backToTop');
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const categoryPills = document.querySelectorAll('.category-pill');
+        
+        // Theme management
+        function setTheme(theme) {
+            const html = document.documentElement;
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                html.classList.remove('light');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            } else {
+                html.classList.add('light');
+                html.classList.remove('dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            }
+            localStorage.setItem('theme', theme);
+        }
+        
+        // Initialize theme from local storage or system preference
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+            } else {
+                // Check system preference
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    setTheme('light');
+                } else {
+                    setTheme('dark');
+                }
+            }
+        }
+        
+        // Toggle theme
+        themeToggle.addEventListener('click', () => {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                setTheme('light');
+            } else {
+                setTheme('dark');
+            }
+        });
+        
+        // Initialize theme
+        initTheme();
+        
+        // Test API connection
+        fetch(`${BASE_URL}/configuration?api_key=${API_KEY}`)
+            .then(response => {
+                if (response.ok) {
+                    apiStatus.innerHTML = '<span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> Connected';
+                    apiStatus.classList.remove('bg-yellow-600');
+                    apiStatus.classList.add('bg-green-600');
+                    return response.json();
+                } else {
+                    throw new Error(`API responded with status ${response.status}`);
+                }
+            })
+            .then(data => {
+                console.log('API is working!');
+                // Load movies once API is confirmed working
+                fetchMovies('popular');
+            })
+            .catch(error => {
+                apiStatus.innerHTML = `<span class="inline-block w-2 h-2 bg-red-500 rounded-full mr-1.5"></span> Error`;
+                apiStatus.classList.remove('bg-yellow-600');
+                apiStatus.classList.add('bg-red-600');
+                console.error('API Error:', error);
+                showErrorMessage('Failed to connect to the movie database. Please check your internet connection and try again.');
+            });
+            
+        // Event listeners
+        searchButton.addEventListener('click', handleSearch);
+        movieSearch.addEventListener('keypress', e => {
+            if (e.key === 'Enter') handleSearch();
+        });
+        
+        closeModal.addEventListener('click', () => {
+            movieModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        });
+        
+        // Close modal when clicking outside content
+        movieModal.addEventListener('click', (e) => {
+            if (e.target === movieModal) {
+                movieModal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        });
+        
+        // Category pill clicks
+        categoryPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                // Remove active class from all pills
+                categoryPills.forEach(p => {
+                    p.classList.remove('active', 'bg-gh-dark-link', 'dark:bg-gh-dark-link', 'light:bg-gh-light-link', 'text-white');
+                    p.classList.add('bg-opacity-10', 'bg-gray-400');
+                });
+                
+                // Add active class to clicked pill
+                pill.classList.add('active', 'bg-gh-dark-link', 'dark:bg-gh-dark-link', 'light:bg-gh-light-link', 'text-white');
+                pill.classList.remove('bg-opacity-10', 'bg-gray-400');
+                
+                // Fetch movies for this category
+                const category = pill.dataset.category;
+                fetchMovies(category);
+                resultsTitle.textContent = getCategoryTitle(category) + ' Movies';
+            });
+        });
+        
+        // Back to top button
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 500) {
+                backToTop.classList.remove('opacity-0', 'invisible');
+                backToTop.classList.add('opacity-100', 'visible');
+            } else {
+                backToTop.classList.add('opacity-0', 'invisible');
+                backToTop.classList.remove('opacity-100', 'visible');
+            }
+        });
+        
+        backToTop.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+        
+        // Handle search
+        function handleSearch() {
+            const query = movieSearch.value.trim();
+            if (!query) return;
+            
+            resultsTitle.textContent = `Search Results: "${query}"`;
+            showSkeletonLoaders();
+            
+            fetch(`${BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}&include_adult=false`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`Found ${data.results.length} movies for "${query}"`);
+                    renderMovies(data.results, 'search');
+                    
+                    // Reset category pills
+                    categoryPills.forEach(p => {
+                        p.classList.remove('active', 'bg-gh-dark-link', 'dark:bg-gh-dark-link', 'light:bg-gh-light-link', 'text-white');
+                        p.classList.add('bg-opacity-10', 'bg-gray-400');
+                    });
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    showErrorMessage(`Failed to search for "${query}". Please try again.`);
+                });
+        }
+        
+        // Fetch movies by category
+        function fetchMovies(category) {
+            showSkeletonLoaders();
+            
+            fetch(`${BASE_URL}/movie/${category}?api_key=${API_KEY}&language=en-US&page=1`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`Loaded ${data.results.length} ${category} movies`);
+                    renderMovies(data.results, category);
+                })
+                .catch(error => {
+                    console.error(`Error loading ${category} movies:`, error);
+                    showErrorMessage(`Failed to load ${getCategoryTitle(category).toLowerCase()} movies. Please try again.`);
+                });
+        }
+        
+        // Get readable category title
+        function getCategoryTitle(category) {
+            const titles = {
+                'popular': 'Popular',
+                'top_rated': 'Top Rated',
+                'now_playing': 'Now Playing',
+                'upcoming': 'Upcoming'
+            };
+            return titles[category] || 'Movies';
+        }
+        
+        // Show skeleton loaders
+        function showSkeletonLoaders() {
+            // Keep existing skeleton loaders
+            return;
+        }
+        
+        // Show error message
+        function showErrorMessage(message) {
+            moviesGrid.innerHTML = `
+                <div class="col-span-full p-8 text-center">
+                    <div class="bg-red-500 bg-opacity-10 p-4 rounded-lg inline-block">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                        <p class="text-red-500">${message}</p>
+                        <button class="mt-4 px-4 py-2 bg-gh-dark-link dark:bg-gh-dark-link light:bg-gh-light-link text-white rounded-md hover:opacity-90 transition-opacity" onclick="window.location.reload()">
+                            <i class="fas fa-redo mr-2"></i> Retry
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render movie cards
+        function renderMovies(movies, source) {
+            if (!movies || movies.length === 0) {
+                if (source === 'search') {
+                    moviesGrid.innerHTML = `
+                        <div class="col-span-full p-8 text-center">
+                            <div class="bg-yellow-500 bg-opacity-10 p-4 rounded-lg inline-block">
+                                <i class="fas fa-search text-yellow-500 text-2xl mb-2"></i>
+                                <p class="text-yellow-500">No movies found matching your search.</p>
+                                <p class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon mt-2">Try different keywords or check your spelling.</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    moviesGrid.innerHTML = `
+                        <div class="col-span-full p-8 text-center">
+                            <div class="bg-yellow-500 bg-opacity-10 p-4 rounded-lg inline-block">
+                                <i class="fas fa-film text-yellow-500 text-2xl mb-2"></i>
+                                <p class="text-yellow-500">No movies available in this category.</p>
+                                <p class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon mt-2">Please try another category.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                resultCount.textContent = '0 movies';
+                return;
+            }
+            
+            moviesGrid.innerHTML = '';
+            resultCount.textContent = `${movies.length} movies`;
+            
+            movies.forEach((movie, index) => {
+                const posterUrl = movie.poster_path 
+                    ? `${POSTER_BASE_URL}${movie.poster_path}`
+                    : 'https://placehold.co/300x450/1e293b/ffffff?text=No+Image';
+                
+                const genres = getGenresFromIds(movie.genre_ids).join(', ') || 'N/A';
+                const year = movie.release_date ? movie.release_date.substring(0, 4) : 'N/A';
+                const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+                
+                const movieCard = document.createElement('div');
+                movieCard.className = `movie-card rounded-lg overflow-hidden shadow-md bg-opacity-40 bg-gray-700 dark:bg-opacity-40 light:bg-opacity-5 backdrop-blur-sm animate-slide-up cursor-pointer`;
+                movieCard.style.animationDelay = `${index * 30}ms`;
+                
+                movieCard.innerHTML = `
+                    <div class="relative group">
+                        <div class="aspect-[2/3] overflow-hidden">
+                            <img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                 src="${posterUrl}" 
+                                 alt="${movie.title}"
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/300x450/1e293b/ffffff?text=No+Image';">
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <div class="text-white text-sm font-medium truncate">${genres}</div>
+                        </div>
+                        <div class="absolute top-2 right-2">
+                            <div class="flex items-center bg-black bg-opacity-75 text-yellow-400 rounded-full px-2 py-1 text-xs font-bold">
+                                <i class="fas fa-star mr-1"></i>${rating}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="font-bold text-base leading-tight line-clamp-2 mb-1">${movie.title}</h3>
+                        <p class="text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon text-xs">${year}</p>
+                    </div>
+                `;
+                
+                movieCard.addEventListener('click', () => showMovieDetails(movie.id));
+                moviesGrid.appendChild(movieCard);
+            });
+        }
+        
+        // Map genre IDs to names
+        const genreMap = {
+            28: 'Action',
+            12: 'Adventure',
+            16: 'Animation',
+            35: 'Comedy',
+            80: 'Crime',
+            99: 'Documentary',
+            18: 'Drama',
+            10751: 'Family',
+            14: 'Fantasy',
+            36: 'History',
+            27: 'Horror',
+            10402: 'Music',
+            9648: 'Mystery',
+            10749: 'Romance',
+            878: 'Sci-Fi',
+            10770: 'TV Movie',
+            53: 'Thriller',
+            10752: 'War',
+            37: 'Western'
+        };
+        
+        function getGenresFromIds(genreIds) {
+            if (!genreIds || !Array.isArray(genreIds)) return [];
+            return genreIds.map(id => genreMap[id] || '').filter(Boolean);
+        }
+        
+        // Show movie details
+        function showMovieDetails(movieId) {
+            // Show loading state in modal
+            movieModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            
+            movieModalContent.innerHTML = `
+                <div class="flex justify-center items-center p-16">
+                    <div class="spinner w-12 h-12 rounded-full border-4 border-gh-dark-link dark:border-gh-dark-link light:border-gh-light-link border-t-transparent"></div>
+                </div>
+            `;
+            
+            // Fetch movie details
+            fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&language=en-US&append_to_response=credits,videos,recommendations,similar`)
+                .then(response => response.json())
+                .then(movie => {
+                    console.log(`Showing details for: ${movie.title}`);
+                    
+                    // Get backdrop and poster URLs
+                    const backdropUrl = movie.backdrop_path 
+                        ? `${BACKDROP_BASE_URL}${movie.backdrop_path}`
+                        : null;
+                    
+                    const posterUrl = movie.poster_path 
+                        ? `${POSTER_BASE_URL}${movie.poster_path}`
+                        : 'https://placehold.co/300x450/1e293b/ffffff?text=No+Image';
+                    
+                    // Get director and top cast
+                    const directors = movie.credits?.crew?.filter(person => person.job === 'Director').map(d => d.name) || [];
+                    const writers = movie.credits?.crew?.filter(person => person.job === 'Screenplay' || person.department === 'Writing').map(w => w.name) || [];
+                    const topCast = movie.credits?.cast?.slice(0, 6) || [];
+                    
+                    // Get trailer
+                    let trailerKey = null;
+                    if (movie.videos && movie.videos.results) {
+                        const trailer = movie.videos.results.find(v => v.type === 'Trailer' && v.site === 'YouTube') || movie.videos.results[0];
+                        if (trailer) trailerKey = trailer.key;
+                    }
+                    
+                    // Format runtime
+                    const hours = Math.floor((movie.runtime || 0) / 60);
+                    const minutes = (movie.runtime || 0) % 60;
+                    const runtime = movie.runtime ? `${hours}h ${minutes}m` : 'N/A';
+                    
+                    // Format release date
+                    const releaseDate = movie.release_date 
+                        ? new Date(movie.release_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : 'N/A';
+                    
+                    // Prepare modal content
+                    let modalContent = `
+                        <div class="relative">
+                            <div class="flex justify-end p-4 absolute top-0 right-0 z-10">
+                                <button id="closeModal" class="text-white bg-black bg-opacity-50 hover:bg-opacity-70 transition-colors p-2 rounded-full">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            
+                            ${backdropUrl ? `
+                                <div class="relative h-64 md:h-80 overflow-hidden">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-gh-dark-bg dark:from-gh-dark-bg light:from-gh-light-bg via-transparent to-transparent z-10"></div>
+                                    <img src="${backdropUrl}" alt="" class="w-full h-full object-cover">
+                                </div>
+                            ` : ''}
+                            
+                            <div class="relative z-20 px-6 lg:px-8 pb-6 ${backdropUrl ? '-mt-32' : 'pt-6'}">
+                                <div class="flex flex-col md:flex-row gap-6">
+                                    <div class="md:w-1/3 lg:w-1/4 flex-shrink-0">
+                                        <div class="rounded-lg overflow-hidden shadow-lg border dark:border-gh-dark-border light:border-gh-light-border">
+                                            <img src="${posterUrl}" alt="${movie.title}" class="w-full h-auto">
+                                        </div>
+                                        
+                                        <!-- Quick facts -->
+                                        <div class="mt-4 space-y-3">
+                                            <!-- Rating -->
+                                            <div class="flex items-center">
+                                                <div class="w-10 flex-shrink-0">
+                                                    <i class="fas fa-star text-yellow-500"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold">${movie.vote_average.toFixed(1)}/10</div>
+                                                    <div class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">${movie.vote_count.toLocaleString()} votes</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Release date -->
+                                            <div class="flex items-center">
+                                                <div class="w-10 flex-shrink-0">
+                                                    <i class="fas fa-calendar-alt text-blue-500"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold">${releaseDate}</div>
+                                                    <div class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">Release date</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Runtime -->
+                                            <div class="flex items-center">
+                                                <div class="w-10 flex-shrink-0">
+                                                    <i class="fas fa-clock text-green-500"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold">${runtime}</div>
+                                                    <div class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">Runtime</div>
+                                                </div>
+                                            </div>
+                                            
+                                            ${movie.budget > 0 ? `
+                                            <!-- Budget -->
+                                            <div class="flex items-center">
+                                                <div class="w-10 flex-shrink-0">
+                                                    <i class="fas fa-money-bill-alt text-emerald-500"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold">$${(movie.budget / 1000000).toFixed(1)}M</div>
+                                                    <div class="text-sm text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">Budget</div>
+                                                </div>
+                                            </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="md:w-2/3 lg:w-3/4">
+                                        <!-- Title and genres -->
+                                        <h1 class="text-2xl md:text-3xl font-bold mb-1">${movie.title}</h1>
+                                        <div class="flex flex-wrap gap-2 mb-4">
+                                            ${movie.genres.map(genre => `
+                                                <span class="px-2 py-1 bg-opacity-10 bg-blue-500 text-xs rounded-md">${genre.name}</span>
+                                            `).join('')}
+                                        </div>
+                                        
+                                        <!-- Tagline if available -->
+                                        ${movie.tagline ? `
+                                            <p class="text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon italic mb-4">${movie.tagline}</p>
+                                        ` : ''}
+                                        
+                                        <!-- Overview -->
+                                        <div class="mb-6">
+                                            <h3 class="text-lg font-semibold mb-2">Overview</h3>
+                                            <p class="text-gh-dark-text dark:text-gh-dark-text light:text-gh-light-text">${movie.overview || 'No overview available.'}</p>
+                                        </div>
+                                        
+                                        <!-- Trailer if available -->
+                                        ${trailerKey ? `
+                                            <div class="mb-6">
+                                                <h3 class="text-lg font-semibold mb-2">Trailer</h3>
+                                                <div class="aspect-video rounded-lg overflow-hidden">
+                                                    <iframe 
+                                                        width="100%" 
+                                                        height="100%" 
+                                                        src="https://www.youtube.com/embed/${trailerKey}" 
+                                                        title="${movie.title} Trailer" 
+                                                        frameborder="0" 
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                        allowfullscreen>
+                                                    </iframe>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                        
+                                        <!-- Cast -->
+                                        <div class="mb-6">
+                                            <h3 class="text-lg font-semibold mb-3">Cast</h3>
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                ${topCast.map(person => `
+                                                    <div class="flex items-center space-x-3 p-2 bg-opacity-5 bg-white rounded-md">
+                                                        <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                                            ${person.profile_path ? 
+                                                                `<img src="https://image.tmdb.org/t/p/w200${person.profile_path}" alt="${person.name}" class="w-full h-full object-cover">` :
+                                                                `<div class="w-full h-full bg-gray-600 flex items-center justify-center text-white">${person.name[0]}</div>`
+                                                            }
+                                                        </div>
+                                                        <div class="min-w-0">
+                                                            <p class="font-medium text-sm truncate">${person.name}</p>
+                                                            <p class="text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon text-xs truncate">${person.character}</p>
+                                                        </div>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Crew -->
+                                        <div class="mb-6">
+                                            <h3 class="text-lg font-semibold mb-2">Crew</h3>
+                                            <div class="space-y-1">
+                                                ${directors.length > 0 ? `
+                                                    <p><span class="text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">Director:</span> ${directors.join(', ')}</p>
+                                                ` : ''}
+                                                ${writers.length > 0 ? `
+                                                    <p><span class="text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">Writers:</span> ${writers.slice(0, 3).join(', ')}${writers.length > 3 ? ' and others' : ''}</p>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recommendations -->
+                        <div class="px-6 lg:px-8 pb-8">
+                            <h3 class="text-xl font-bold mb-4">You May Also Like</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                ${(movie.recommendations?.results?.length > 0 ? movie.recommendations.results : movie.similar?.results || [])
+                                    .slice(0, 6)
+                                    .map(rec => `
+                                        <div class="movie-card rounded-lg overflow-hidden cursor-pointer" onclick="showMovieDetails(${rec.id})">
+                                            <div class="relative">
+                                                <img class="w-full aspect-[2/3] object-cover" 
+                                                     src="${rec.poster_path ? `${POSTER_BASE_URL}${rec.poster_path}` : 'https://placehold.co/300x450/1e293b/ffffff?text=No+Image'}" 
+                                                     alt="${rec.title}"
+                                                     loading="lazy">
+                                                <div class="absolute top-1 right-1 bg-black bg-opacity-75 text-yellow-400 rounded-full px-1 py-0.5 text-xs">
+                                                    <i class="fas fa-star text-xs mr-0.5"></i>${rec.vote_average.toFixed(1)}
+                                                </div>
+                                            </div>
+                                            <div class="p-2">
+                                                <p class="text-sm font-medium line-clamp-1">${rec.title}</p>
+                                                <p class="text-xs text-gh-dark-icon dark:text-gh-dark-icon light:text-gh-light-icon">${rec.release_date ? rec.release_date.substring(0, 4) : 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Update modal content
+                    movieModalContent.innerHTML = modalContent;
+                    
+                    // Re-attach close button event listener
+                    document.getElementById('closeModal').addEventListener('click', () => {
+                        movieModal.classList.add('hidden');
+                        document.body.style.overflow = '';
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading movie details:', error);
+                    movieModalContent.innerHTML = `
+                        <div class="p-8 text-center">
+                            <div class="bg-red-500 bg-opacity-10 p-4 rounded-lg inline-block">
+                                <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                                <p class="text-red-500">Failed to load movie details. Please try again.</p>
+                                <button class="mt-4 px-4 py-2 bg-gh-dark-link dark:bg-gh-dark-link light:bg-gh-light-link text-white rounded-md hover:opacity-90 transition-opacity" onclick="movieModal.classList.add('hidden'); document.body.style.overflow = '';">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+        }
+        
+        // Make showMovieDetails available globally for onclick event handlers
+        window.showMovieDetails = showMovieDetails;
+        
+        // Add keyboard control for modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !movieModal.classList.contains('hidden')) {
+                movieModal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        });
+        
+        // Enhanced search experience - expand search on focus
+        movieSearch.addEventListener('focus', () => {
+            movieSearch.classList.remove('w-36', 'sm:w-64');
+            movieSearch.classList.add('w-48', 'sm:w-80');
+        });
+        
+        movieSearch.addEventListener('blur', () => {
+            if (!movieSearch.value) {
+                movieSearch.classList.remove('w-48', 'sm:w-80');
+                movieSearch.classList.add('w-36', 'sm:w-64');
+            }
+        });
+    </script>
+</body>
+</html>
